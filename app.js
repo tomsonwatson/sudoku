@@ -170,13 +170,15 @@ async function analyzeImage(canvas) {
 
   // Phase2: セル分割 + 数字認識
   showLoading('数字を認識中...');
-  const cells = splitGridIntoCells(gridCanvas);
+  const rawCells = splitGridIntoCells(gridCanvas);
+  const cells = rawCells.map(c => enhanceCellContrast(c));
 
-  // 空セル判定（簡易）
+  // 空セル判定
   const boardData = Array(81).fill(0);
   const emptyFlags = cells.map(c => isCellEmpty(c));
+  console.log('空セル数:', emptyFlags.filter(Boolean).length);
 
-  // Tesseract.js で数字認識
+  // TensorFlow.js + MNIST で数字認識
   try {
     await recognizeDigits(cells, emptyFlags, boardData);
   } catch (e) {

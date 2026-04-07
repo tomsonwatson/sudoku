@@ -2,25 +2,23 @@
 
 // ============================================================
 // Phase 2: 数字認識
-// Tesseract.js を使ってセル画像から数字を読み取る
+// TensorFlow.js + MNIST ベース CNN で手書き数字を認識
 // ============================================================
 
-let _tesseractWorker = null;
+let _model = null;
 
 /**
- * Tesseract Worker を初期化（初回のみ）
+ * モデルをロード（初回のみ）
+ * MNISTで学習済みの軽量CNNをTensorFlow.js形式で使用
  */
-async function initTesseract() {
-  if (_tesseractWorker) return _tesseractWorker;
-  const worker = await Tesseract.createWorker('eng', 1, {
-    logger: () => {},
-  });
-  await worker.setParameters({
-    tessedit_char_whitelist: '123456789',
-    tessedit_pageseg_mode: '10', // PSM_SINGLE_CHAR
-  });
-  _tesseractWorker = worker;
-  return worker;
+async function loadDigitModel() {
+  if (_model) return _model;
+  // TensorFlow.js の公式 MNIST サンプルモデルを使用
+  _model = await tf.loadLayersModel(
+    'https://storage.googleapis.com/tfjs-models/tfjs/mnist_transfer_cnn_v1/model.json'
+  );
+  console.log('MNISTモデル読み込み完了');
+  return _model;
 }
 
 /**
@@ -30,7 +28,7 @@ async function initTesseract() {
  * @param {number[]} boardData 結果書き込み先（0〜9）
  */
 async function recognizeDigits(cells, emptyFlags, boardData) {
-  const worker = await initTesseract();
+  const model = await loadDigitModel();
 
   for (let i = 0; i < 81; i++) {
     if (emptyFlags[i]) {
@@ -38,44 +36,78 @@ async function recognizeDigits(cells, emptyFlags, boardData) {
       continue;
     }
 
-    // セル画像を前処理してから認識
-    const processedCanvas = preprocessCell(cells[i]);
-    const { data: { text } } = await worker.recognize(processedCanvas);
-    const digit = parseInt(text.trim(), 10);
-    boardData[i] = (digit >= 1 && digit <= 9) ? digit : 0;
+    const digit = await predictDigit(model, cells[i]);
+    boardData[i] = digit;
+    if (i % 9 === 0) console.log(`OCR行${Math.floor(i/9)+1}: ${boardData.slice(i, i+9).join('')}`);
   }
 }
 
 /**
- * セル画像を OCR 向けに前処理する
- * - グレースケール化
- * - コントラスト強調
- * - 余白追加（Tesseract は余白があると精度が上がる）
+ * 単一セル画像から数字を予測する
+ * @param {tf.LayersModel} model
+ * @param {HTMLCanvasElement} cellCanvas
+ * @returns {number} 1〜9、判定不能なら 0
  */
-function preprocessCell(cellCanvas) {
-  const PAD = 8;
+async function predictDigit(model, cellCanvas) {
+  return tf.tidy(() => {
+    // 1. 28x28 グレースケールに変換
+    const tensor = tf.browser.fromPixels(cellCanvas, 1)  // グレースケール
+      .resizeBilinear([28, 28])
+      .toFloat();
+
+    // 2. MNIST形式に正規化（背景白・数字黒 → 反転して背景黒・数字白）
+    const normalized = tf.scalar(255).sub(tensor).div(tf.scalar(255));
+
+    // 3. バッチ次元追加 [1, 28, 28, 1]
+    const batched = normalized.expandDims(0);
+
+    // 4. 推論
+    const prediction = model.predict(batched);
+    const probs = prediction.dataSync();
+
+    // 5. 最高スコアのクラスを取得（0〜9）
+    let maxProb = 0, maxClass = 0;
+    for (let c = 0; c < 10; c++) {
+      if (probs[c] > maxProb) {
+        maxProb = probs[c];
+        maxClass = c;
+      }
+    }
+
+    // 信頼度が低い or クラス0（空判定）はスキップ
+    if (maxProb < 0.5 || maxClass === 0) return 0;
+    return maxClass;
+  });
+}
+
+/**
+ * セル画像を前処理してコントラストを強調する
+ * （splitGridIntoCells の後に呼ぶ任意の前処理）
+ */
+function enhanceCellContrast(cellCanvas) {
   const out = document.createElement('canvas');
-  out.width  = cellCanvas.width  + PAD * 2;
-  out.height = cellCanvas.height + PAD * 2;
+  out.width  = cellCanvas.width;
+  out.height = cellCanvas.height;
   const ctx = out.getContext('2d');
+  ctx.drawImage(cellCanvas, 0, 0);
 
-  // 白背景
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, out.width, out.height);
-
-  // セル画像を中央に配置
-  ctx.drawImage(cellCanvas, PAD, PAD);
-
-  // グレースケール + コントラスト強調
   const imgData = ctx.getImageData(0, 0, out.width, out.height);
-  const data = imgData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-    // コントラスト強調：128を境に白黒に寄せる
-    const val = gray > 128 ? Math.min(255, gray * 1.2) : Math.max(0, gray * 0.8);
-    data[i] = data[i+1] = data[i+2] = val;
+  const d = imgData.data;
+
+  // グレースケール化 + 大津の二値化的処理
+  let sum = 0;
+  const grays = new Uint8Array(d.length / 4);
+  for (let i = 0; i < d.length; i += 4) {
+    const g = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
+    grays[i/4] = g;
+    sum += g;
+  }
+  const mean = sum / grays.length;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const val = grays[i/4] > mean ? 255 : 0;
+    d[i] = d[i+1] = d[i+2] = val;
   }
   ctx.putImageData(imgData, 0, 0);
-
   return out;
 }
