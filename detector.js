@@ -161,10 +161,10 @@ function orderPoints32S(mat) {
   const tl = pts[0];
   const br = pts[3];
 
-  // 残り2点: x-y 小 → 右上、大 → 左下
+  // 残り2点: x-y 小 → 左下、大 → 右上
   const mid = [pts[1], pts[2]].sort((a, b) => (a[0] - a[1]) - (b[0] - b[1]));
-  const tr = mid[0];
-  const bl = mid[1];
+  const bl = mid[0];
+  const tr = mid[1];
 
   return [tl, tr, br, bl];
 }
