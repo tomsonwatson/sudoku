@@ -28,6 +28,67 @@ const statusBar    = $('status-bar');
 const loadingOverlay = $('loading-overlay');
 const loadingMsg   = $('loading-msg');
 const fileInput    = $('file-input');
+const numpad       = $('numpad');
+const hintPanel    = $('hint-panel');
+const modeDoneBtn  = $('mode-done-btn');
+
+// 現在のモード: 'edit' | 'hint'
+let currentMode = 'edit';
+
+// ============================================================
+// モード切替（修正 / ヒント）
+// ============================================================
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+modeDoneBtn.addEventListener('click', () => setMode('hint'));
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode)
+  );
+  if (mode === 'edit') {
+    numpad.classList.remove('hidden');
+    hintPanel.classList.add('hidden');
+    // 全セルをタップ可能に
+    document.querySelectorAll('.sudoku-cell').forEach(c => c.classList.add('editable'));
+  } else {
+    numpad.classList.add('hidden');
+    hintPanel.classList.remove('hidden');
+    document.querySelectorAll('.sudoku-cell').forEach(c => {
+      c.classList.remove('editable', 'selected');
+    });
+    state.selected = -1;
+    // ヒントモードに入ったら候補を再計算
+    computeAllNotes();
+    showNextHint();
+  }
+}
+
+// 数字キーパッド
+document.querySelectorAll('.numpad-btn[data-n]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.selected < 0) return;
+    const n = parseInt(btn.dataset.n, 10);
+    const i = state.selected;
+
+    state.board[i] = n;
+    // 0（消去）なら given フラグも外す
+    if (n === 0) {
+      state.given[i] = false;
+      gridEl.children[i].classList.remove('given', 'user-input');
+    } else {
+      state.given[i] = true;
+      gridEl.children[i].classList.remove('user-input');
+      gridEl.children[i].classList.add('given');
+    }
+    state.notes[i] = new Set();
+    refreshCell(i);
+    updateStatus();
+  });
+});
 
 // ============================================================
 // タブ切り替え
@@ -131,8 +192,8 @@ analyzeBtn.addEventListener('click', async () => {
     await analyzeImage(previewCanvas);
     switchToScreen('board');
     renderBoard();
-    computeAllNotes();
-    showNextHint();
+    // OCR直後は編集モードで開く（修正しやすいように）
+    setMode('edit');
   } catch (e) {
     hideLoading();
     alert('解析に失敗しました。盤面が枠内に収まっているか確認してください。\n' + e.message);
@@ -224,6 +285,7 @@ function renderBoard() {
     cell.className = 'sudoku-cell';
     cell.dataset.idx = i;
     if (state.given[i]) cell.classList.add('given');
+    if (currentMode === 'edit') cell.classList.add('editable');
     updateCellDisplay(cell, i);
     cell.addEventListener('click', () => selectCell(i));
     gridEl.appendChild(cell);
@@ -254,6 +316,7 @@ function refreshCell(i) {
 }
 
 function selectCell(i) {
+  if (currentMode !== 'edit') return;
   document.querySelectorAll('.sudoku-cell').forEach(c => c.classList.remove('selected'));
   state.selected = i;
   gridEl.children[i].classList.add('selected');

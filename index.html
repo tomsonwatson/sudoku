@@ -63,18 +63,44 @@
 
     <!-- 盤面・ヒント画面 -->
     <div id="board-screen" class="screen">
+
+      <!-- モード切替バー -->
+      <div id="mode-bar" class="mode-bar">
+        <button id="mode-edit-btn" class="mode-btn active" data-mode="edit">✏️ 修正</button>
+        <button id="mode-hint-btn" class="mode-btn" data-mode="hint">💡 ヒント</button>
+      </div>
+
       <div id="sudoku-grid" class="sudoku-grid"></div>
 
-      <div class="hint-panel">
+      <!-- 数字キーパッド（修正モード時） -->
+      <div id="numpad" class="numpad">
+        <div class="numpad-grid">
+          <button class="numpad-btn" data-n="1">1</button>
+          <button class="numpad-btn" data-n="2">2</button>
+          <button class="numpad-btn" data-n="3">3</button>
+          <button class="numpad-btn" data-n="4">4</button>
+          <button class="numpad-btn" data-n="5">5</button>
+          <button class="numpad-btn" data-n="6">6</button>
+          <button class="numpad-btn" data-n="7">7</button>
+          <button class="numpad-btn" data-n="8">8</button>
+          <button class="numpad-btn" data-n="9">9</button>
+          <button class="numpad-btn numpad-clear" data-n="0">✕</button>
+          <button class="numpad-btn numpad-confirm" id="mode-done-btn">完了</button>
+        </div>
+        <p class="numpad-hint">セルをタップして数字を入力・修正できます</p>
+      </div>
+
+      <!-- ヒントパネル（ヒントモード時） -->
+      <div id="hint-panel" class="hint-panel hidden">
         <h2>ヒント</h2>
-        <p id="hint-text" class="hint-text">盤面を撮影して解析すると、ここにヒントが表示されます。</p>
+        <p id="hint-text" class="hint-text">盤面を確認してヒントを表示します。</p>
         <div class="hint-actions">
           <button id="next-hint-btn" class="btn btn-primary">次のヒントを適用</button>
           <button id="clear-board-btn" class="btn btn-secondary">リセット</button>
         </div>
       </div>
 
-      <!-- デバッグログ（開発中のみ表示） -->
+      <!-- デバッグログ -->
       <div id="debug-log">ログ待機中...</div>
     </div>
 
