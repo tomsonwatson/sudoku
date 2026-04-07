@@ -706,10 +706,14 @@ console.log  = (...a) => _appendLog('[LOG]',  a);
 console.warn = (...a) => _appendLog('[WARN]', a);
 
 // ============================================================
-// Service Worker 登録
+// Service Worker 登録（古いキャッシュを全削除してから再登録）
 // ============================================================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(console.warn);
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    Promise.all(regs.map(r => r.unregister())).then(() => {
+      navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    });
+  });
 }
 
 // ============================================================
