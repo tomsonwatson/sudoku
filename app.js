@@ -31,9 +31,15 @@ const fileInput    = $('file-input');
 const numpad       = $('numpad');
 const hintPanel    = $('hint-panel');
 const modeDoneBtn  = $('mode-done-btn');
+const manualGridEl = $('manual-grid');
+const manualDoneBtn = $('manual-done-btn');
 
 // 現在のモード: 'edit' | 'hint'
 let currentMode = 'edit';
+
+// 手入力盤面の状態
+const manualBoard = Array(81).fill(0);
+let manualSelected = -1;
 
 // ============================================================
 // モード切替（修正 / ヒント）
@@ -111,8 +117,65 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById(target + '-screen').classList.add('active');
     if (target === 'camera') startCamera();
     else stopCamera();
+    if (target === 'manual') renderManualGrid();
   });
 });
+
+// ============================================================
+// 手入力モード
+// ============================================================
+function renderManualGrid() {
+  manualGridEl.innerHTML = '';
+  for (let i = 0; i < 81; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'sudoku-cell editable';
+    cell.dataset.idx = i;
+    if (manualBoard[i] !== 0) {
+      cell.textContent = manualBoard[i];
+      cell.classList.add('given');
+    }
+    if (manualSelected === i) cell.classList.add('selected');
+    const handler = () => {
+      manualSelected = i;
+      document.querySelectorAll('#manual-grid .sudoku-cell').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+    };
+    cell.addEventListener('touchstart', (e) => { e.preventDefault(); handler(); }, { passive: false });
+    cell.addEventListener('click', handler);
+    manualGridEl.appendChild(cell);
+  }
+}
+
+document.querySelectorAll('.manual-num').forEach(btn => {
+  const handler = () => {
+    if (manualSelected < 0) return;
+    const n = parseInt(btn.dataset.n, 10);
+    manualBoard[manualSelected] = n;
+    const cell = manualGridEl.children[manualSelected];
+    cell.textContent = n === 0 ? '' : n;
+    cell.classList.toggle('given', n !== 0);
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 150);
+  };
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); handler(); }, { passive: false });
+  btn.addEventListener('click', handler);
+});
+
+manualDoneBtn.addEventListener('touchstart', (e) => { e.preventDefault(); applyManualBoard(); }, { passive: false });
+manualDoneBtn.addEventListener('click', applyManualBoard);
+
+function applyManualBoard() {
+  state.board = [...manualBoard];
+  state.given = manualBoard.map(v => v !== 0);
+  state.notes = Array(81).fill(null).map(() => new Set());
+  // 盤面タブへ移動
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'board'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'board-screen'));
+  stopCamera();
+  renderBoard();
+  setMode('hint');
+  updateStatus();
+}
 
 // ============================================================
 // カメラ

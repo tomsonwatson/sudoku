@@ -22,6 +22,7 @@
   <!-- タブ -->
   <nav class="tabs">
     <button class="tab-btn active" data-tab="camera">📷 撮影</button>
+    <button class="tab-btn" data-tab="manual">✏️ 手入力</button>
     <button class="tab-btn" data-tab="board">🧩 盤面</button>
   </nav>
 
@@ -49,6 +50,28 @@
       <div class="file-input-wrap">
         <label for="file-input" class="btn btn-secondary">📁 画像から読み込む</label>
         <input type="file" id="file-input" accept="image/*" capture="environment">
+      </div>
+    </div>
+
+    <!-- 手入力画面 -->
+    <div id="manual-screen" class="screen">
+      <div class="manual-info">空のセルをタップして数字を入力してください</div>
+      <div id="manual-grid" class="sudoku-grid"></div>
+      <div class="numpad">
+        <div class="numpad-grid">
+          <button class="numpad-btn manual-num" data-n="1">1</button>
+          <button class="numpad-btn manual-num" data-n="2">2</button>
+          <button class="numpad-btn manual-num" data-n="3">3</button>
+          <button class="numpad-btn manual-num" data-n="4">4</button>
+          <button class="numpad-btn manual-num" data-n="5">5</button>
+          <button class="numpad-btn manual-num" data-n="6">6</button>
+          <button class="numpad-btn manual-num" data-n="7">7</button>
+          <button class="numpad-btn manual-num" data-n="8">8</button>
+          <button class="numpad-btn manual-num" data-n="9">9</button>
+          <button class="numpad-btn numpad-clear manual-num" data-n="0">✕</button>
+          <button class="numpad-btn numpad-confirm" id="manual-done-btn">完了</button>
+        </div>
+        <p class="numpad-hint">入力完了後「完了」でヒントを表示します</p>
       </div>
     </div>
 
