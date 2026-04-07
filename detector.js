@@ -197,16 +197,26 @@ function splitGridIntoCells(gridCanvas) {
 }
 
 /**
- * セルが空かどうかを判定（暗いピクセル比率で判断）
+ * セルが空かどうかを判定
+ * グリッド線を避けるためセル中央の60%領域のみチェックする
  */
 function isCellEmpty(cellCanvas) {
   const ctx = cellCanvas.getContext('2d');
-  const data = ctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height).data;
+  const w = cellCanvas.width;
+  const h = cellCanvas.height;
+
+  // 中央60%の領域を切り出す
+  const cx = Math.floor(w * 0.2);
+  const cy = Math.floor(h * 0.2);
+  const cw = Math.floor(w * 0.6);
+  const ch = Math.floor(h * 0.6);
+  const data = ctx.getImageData(cx, cy, cw, ch).data;
+
   let darkPixels = 0;
   for (let i = 0; i < data.length; i += 4) {
     const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-    if (brightness < 100) darkPixels++;
+    if (brightness < 150) darkPixels++;
   }
   const ratio = darkPixels / (data.length / 4);
-  return ratio < 0.04;
+  return ratio < 0.06; // 中央部分の暗ピクセルが6%未満なら空
 }

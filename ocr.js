@@ -38,7 +38,7 @@ async function recognizeDigits(cells, emptyFlags, boardData) {
 
     const digit = await predictDigit(model, cells[i]);
     boardData[i] = digit;
-    if (i % 9 === 0) console.log(`OCR行${Math.floor(i/9)+1}: ${boardData.slice(i, i+9).join('')}`);
+    if (i % 9 === 8) console.log(`OCR行${Math.floor(i/9)+1}: ${boardData.slice(i-8, i+1).join(' ')}`);
   }
 }
 
@@ -51,11 +51,13 @@ async function recognizeDigits(cells, emptyFlags, boardData) {
 async function predictDigit(model, cellCanvas) {
   return tf.tidy(() => {
     // 1. 28x28 グレースケールに変換
-    const tensor = tf.browser.fromPixels(cellCanvas, 1)  // グレースケール
+    const tensor = tf.browser.fromPixels(cellCanvas, 1)
       .resizeBilinear([28, 28])
       .toFloat();
 
-    // 2. MNIST形式に正規化（背景白・数字黒 → 反転して背景黒・数字白）
+    // 2. MNIST形式に正規化（背景黒・数字白）
+    // enhanceCellContrast後: 数字=黒(0), 背景=白(255)
+    // MNISTは数字=白(1), 背景=黒(0) なので反転
     const normalized = tf.scalar(255).sub(tensor).div(tf.scalar(255));
 
     // 3. バッチ次元追加 [1, 28, 28, 1]
@@ -63,19 +65,19 @@ async function predictDigit(model, cellCanvas) {
 
     // 4. 推論
     const prediction = model.predict(batched);
-    const probs = prediction.dataSync();
+    const probs = Array.from(prediction.dataSync());
 
-    // 5. 最高スコアのクラスを取得（0〜9）
+    // 5. 1〜9の中で最高スコアを探す（0は数独に存在しない）
     let maxProb = 0, maxClass = 0;
-    for (let c = 0; c < 10; c++) {
+    for (let c = 1; c <= 9; c++) {
       if (probs[c] > maxProb) {
         maxProb = probs[c];
         maxClass = c;
       }
     }
 
-    // 信頼度が低い or クラス0（空判定）はスキップ
-    if (maxProb < 0.5 || maxClass === 0) return 0;
+    // 信頼度が低すぎる場合は0（空）として扱う
+    if (maxProb < 0.3) return 0;
     return maxClass;
   });
 }

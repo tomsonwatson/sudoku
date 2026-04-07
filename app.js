@@ -171,12 +171,14 @@ async function analyzeImage(canvas) {
   // Phase2: セル分割 + 数字認識
   showLoading('数字を認識中...');
   const rawCells = splitGridIntoCells(gridCanvas);
-  const cells = rawCells.map(c => enhanceCellContrast(c));
 
-  // 空セル判定
+  // 空セル判定はRAWセルの中央部分で行う（グリッド線ノイズを避ける）
   const boardData = Array(81).fill(0);
-  const emptyFlags = cells.map(c => isCellEmpty(c));
+  const emptyFlags = rawCells.map(c => isCellEmpty(c));
   console.log('空セル数:', emptyFlags.filter(Boolean).length);
+
+  // コントラスト強調はOCR用のみに使用
+  const cells = rawCells.map(c => enhanceCellContrast(c));
 
   // TensorFlow.js + MNIST で数字認識
   try {
