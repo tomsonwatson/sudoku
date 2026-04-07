@@ -291,14 +291,15 @@ async function analyzeImage(canvas) {
   try {
     gridCanvas = await detectAndWarpGrid(canvas);
   } catch (e) {
-    console.warn('グリッド検出失敗、サンプルに切り替え:', e.message);
-    loadSampleBoard();
-    return;
+    console.warn('グリッド検出例外:', e.message);
   }
 
   if (!gridCanvas) {
-    // 検出失敗 → サンプルで継続
-    loadSampleBoard();
+    console.warn('グリッド検出失敗 → 手入力モードへ');
+    // 検出失敗 → 空盤面で編集モードへ（サンプルは出さない）
+    state.board = Array(81).fill(0);
+    state.given = Array(81).fill(false);
+    state.notes = Array(81).fill(null).map(() => new Set());
     return;
   }
 
@@ -319,13 +320,12 @@ async function analyzeImage(canvas) {
 
   const cells = rawCells;
 
-  // TensorFlow.js + MNIST で数字認識
+  // Tesseract.js で数字認識
   try {
     await recognizeDigits(cells, emptyFlags, boardData);
   } catch (e) {
-    console.warn('OCR失敗、サンプルに切り替え:', e.message);
-    loadSampleBoard();
-    return;
+    console.warn('OCR失敗:', e.message);
+    // 失敗してもグリッド検出結果は使う（全0の空盤面として編集モードへ）
   }
 
   state.board = boardData;
