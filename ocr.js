@@ -30,15 +30,34 @@ async function loadDigitModel() {
 async function recognizeDigits(cells, emptyFlags, boardData) {
   const model = await loadDigitModel();
 
+  // モデル出力形状をデバッグ
+  let debugCount = 0;
+
   for (let i = 0; i < 81; i++) {
     if (emptyFlags[i]) {
       boardData[i] = 0;
       continue;
     }
 
-    const digit = await predictDigit(model, cells[i]);
+    const { digit, probs } = await predictDigitWithProbs(model, cells[i]);
     boardData[i] = digit;
-    if (i % 9 === 8) console.log(`OCR行${Math.floor(i/9)+1}: ${boardData.slice(i-8, i+1).join(' ')}`);
+
+    // 最初の3つの非空セルの生の確率値をログ
+    if (debugCount < 3) {
+      const top3 = probs
+        .map((p, c) => ({ c, p }))
+        .sort((a, b) => b.p - a.p)
+        .slice(0, 3)
+        .map(x => `${x.c}:${(x.p*100).toFixed(0)}%`)
+        .join(' ');
+      console.log(`セル${i}(行${Math.floor(i/9)+1}列${i%9+1}) → ${digit} [${top3}]`);
+      debugCount++;
+    }
+  }
+
+  // 全行結果をまとめてログ
+  for (let r = 0; r < 9; r++) {
+    console.log(`行${r+1}: ${boardData.slice(r*9, r*9+9).join(' ')}`);
   }
 }
 
@@ -48,38 +67,44 @@ async function recognizeDigits(cells, emptyFlags, boardData) {
  * @param {HTMLCanvasElement} cellCanvas
  * @returns {number} 1〜9、判定不能なら 0
  */
-async function predictDigit(model, cellCanvas) {
-  return tf.tidy(() => {
+async function predictDigitWithProbs(model, cellCanvas) {
+  const result = tf.tidy(() => {
     // 1. 28x28 グレースケールに変換
     const tensor = tf.browser.fromPixels(cellCanvas, 1)
       .resizeBilinear([28, 28])
       .toFloat();
 
-    // 2. MNIST形式に正規化（背景黒・数字白）
-    // enhanceCellContrast後: 数字=黒(0), 背景=白(255)
-    // MNISTは数字=白(1), 背景=黒(0) なので反転
+    // 2. 反転（数字=白, 背景=黒 のMNIST形式に）
     const normalized = tf.scalar(255).sub(tensor).div(tf.scalar(255));
 
     // 3. バッチ次元追加 [1, 28, 28, 1]
     const batched = normalized.expandDims(0);
 
-    // 4. 推論
-    const prediction = model.predict(batched);
-    const probs = Array.from(prediction.dataSync());
-
-    // 5. 1〜9の中で最高スコアを探す（0は数独に存在しない）
-    let maxProb = 0, maxClass = 0;
-    for (let c = 1; c <= 9; c++) {
-      if (probs[c] > maxProb) {
-        maxProb = probs[c];
-        maxClass = c;
-      }
-    }
-
-    // 信頼度が低すぎる場合は0（空）として扱う
-    if (maxProb < 0.3) return 0;
-    return maxClass;
+    // 4. 推論 → softmaxで確率化
+    const logits = model.predict(batched);
+    const probs = tf.softmax(logits);
+    return Array.from(probs.dataSync());
   });
+
+  // 1〜9で最高確率を探す
+  let maxProb = 0, maxClass = 0;
+  for (let c = 1; c <= 9; c++) {
+    if (result[c] > maxProb) {
+      maxProb = result[c];
+      maxClass = c;
+    }
+  }
+
+  return {
+    digit: maxProb < 0.25 ? 0 : maxClass,
+    probs: result,
+  };
+}
+
+// 後方互換用
+async function predictDigit(model, cellCanvas) {
+  const { digit } = await predictDigitWithProbs(model, cellCanvas);
+  return digit;
 }
 
 /**
