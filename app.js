@@ -67,27 +67,36 @@ function setMode(mode) {
   }
 }
 
-// 数字キーパッド
-document.querySelectorAll('.numpad-btn[data-n]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (state.selected < 0) return;
-    const n = parseInt(btn.dataset.n, 10);
-    const i = state.selected;
+// 数字キーパッド（touchstart で即反応、clickも併用）
+function onNumpadPress(btn) {
+  if (state.selected < 0) return;
+  const n = parseInt(btn.dataset.n, 10);
+  const i = state.selected;
 
-    state.board[i] = n;
-    // 0（消去）なら given フラグも外す
-    if (n === 0) {
-      state.given[i] = false;
-      gridEl.children[i].classList.remove('given', 'user-input');
-    } else {
-      state.given[i] = true;
-      gridEl.children[i].classList.remove('user-input');
-      gridEl.children[i].classList.add('given');
-    }
-    state.notes[i] = new Set();
-    refreshCell(i);
-    updateStatus();
-  });
+  state.board[i] = n;
+  if (n === 0) {
+    state.given[i] = false;
+    gridEl.children[i].classList.remove('given', 'user-input');
+  } else {
+    state.given[i] = true;
+    gridEl.children[i].classList.remove('user-input');
+    gridEl.children[i].classList.add('given');
+  }
+  state.notes[i] = new Set();
+  refreshCell(i);
+  updateStatus();
+
+  // 視覚フィードバック
+  btn.classList.add('pressed');
+  setTimeout(() => btn.classList.remove('pressed'), 150);
+}
+
+document.querySelectorAll('.numpad-btn[data-n]').forEach(btn => {
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // iOSのダブルタップズームを防止
+    onNumpadPress(btn);
+  }, { passive: false });
+  btn.addEventListener('click', () => onNumpadPress(btn));
 });
 
 // ============================================================
@@ -287,6 +296,10 @@ function renderBoard() {
     if (state.given[i]) cell.classList.add('given');
     if (currentMode === 'edit') cell.classList.add('editable');
     updateCellDisplay(cell, i);
+    cell.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      selectCell(i);
+    }, { passive: false });
     cell.addEventListener('click', () => selectCell(i));
     gridEl.appendChild(cell);
   }

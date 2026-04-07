@@ -22,6 +22,8 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* ヘッダー */
@@ -211,9 +213,10 @@ main {
 
 /* 盤面画面 */
 #board-screen {
-  padding: 16px;
-  gap: 12px;
+  padding: 8px;
+  gap: 8px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* 数独グリッド */
@@ -224,7 +227,10 @@ main {
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 1;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .sudoku-cell {
@@ -290,83 +296,88 @@ main {
 .mode-bar {
   display: flex;
   background: var(--surface);
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
   flex-shrink: 0;
+  gap: 8px;
+  padding: 8px 12px;
 }
 
 .mode-btn {
   flex: 1;
-  padding: 10px;
-  background: none;
+  padding: 12px 8px;
+  background: var(--accent);
   border: none;
+  border-radius: 8px;
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
+  min-height: 48px;
+  transition: background 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mode-btn.active {
-  color: var(--highlight);
-  border-bottom-color: var(--highlight);
+  background: var(--highlight);
+  color: white;
 }
 
 /* 数字キーパッド */
 .numpad {
-  padding: 12px 16px 4px;
+  padding: 10px 12px 4px;
   flex-shrink: 0;
 }
 
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .numpad-btn {
-  aspect-ratio: 1;
-  border-radius: 8px;
+  height: 56px;
+  border-radius: 10px;
   border: none;
   background: var(--accent);
   color: var(--text);
-  font-size: clamp(18px, 5vw, 26px);
+  font-size: clamp(20px, 5.5vw, 28px);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.numpad-btn:active {
-  transform: scale(0.92);
+.numpad-btn:active,
+.numpad-btn.pressed {
   background: var(--highlight);
+  color: white;
 }
 
 .numpad-clear {
   background: #3a1a2a;
   color: var(--highlight);
+  font-size: clamp(16px, 4vw, 22px);
 }
 
 .numpad-confirm {
   background: var(--highlight);
   color: white;
   font-size: clamp(13px, 3.5vw, 16px);
-  grid-column: span 1;
+  font-weight: 700;
 }
 
 .numpad-hint {
   font-size: 11px;
   color: var(--text-dim);
   text-align: center;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 /* 修正中セルのスタイル */
 .sudoku-cell.editable {
   cursor: pointer;
-}
-
-.sudoku-cell.editable:active {
-  background: rgba(233, 69, 96, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .sudoku-cell.user-input {
