@@ -120,10 +120,49 @@ analyzeBtn.addEventListener('click', async () => {
 // ※ Phase 1 & 2 の実装。現段階はサンプル入力で動作確認。
 // ============================================================
 async function analyzeImage(canvas) {
-  // TODO: Phase1 - OpenCV.js でグリッド検出
-  // TODO: Phase2 - Tesseract.js で数字認識
-  // 現段階はデモ用サンプル盤面をロード
-  loadSampleBoard();
+  // Phase1: OpenCV.js でグリッド検出
+  showLoading('グリッドを検出中...');
+  let gridCanvas;
+  try {
+    gridCanvas = await detectAndWarpGrid(canvas);
+  } catch (e) {
+    console.warn('グリッド検出失敗、サンプルに切り替え:', e.message);
+    loadSampleBoard();
+    return;
+  }
+
+  if (!gridCanvas) {
+    // 検出失敗 → サンプルで継続
+    loadSampleBoard();
+    return;
+  }
+
+  // 検出結果をプレビューに反映
+  const ctx = canvas.getContext('2d');
+  canvas.width  = gridCanvas.width;
+  canvas.height = gridCanvas.height;
+  ctx.drawImage(gridCanvas, 0, 0);
+
+  // Phase2: セル分割 + 数字認識
+  showLoading('数字を認識中...');
+  const cells = splitGridIntoCells(gridCanvas);
+
+  // 空セル判定（簡易）
+  const boardData = Array(81).fill(0);
+  const emptyFlags = cells.map(c => isCellEmpty(c));
+
+  // Tesseract.js で数字認識
+  try {
+    await recognizeDigits(cells, emptyFlags, boardData);
+  } catch (e) {
+    console.warn('OCR失敗、サンプルに切り替え:', e.message);
+    loadSampleBoard();
+    return;
+  }
+
+  state.board = boardData;
+  state.given = boardData.map(v => v !== 0);
+  state.notes = Array(81).fill(null).map(() => new Set());
 }
 
 function loadSampleBoard() {
