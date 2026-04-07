@@ -5,13 +5,7 @@
 // OpenCV.js を使って撮影画像から数独グリッドを切り出す
 // ============================================================
 
-let _cvReady = false;
-
-// OpenCV.js の onRuntimeInitialized コールバック
-function onOpenCvReady() {
-  _cvReady = true;
-  console.log('OpenCV.js 準備完了');
-}
+// _cvReady は index.html の Module.onRuntimeInitialized で設定される
 
 function waitForOpenCV() {
   return new Promise((resolve, reject) => {

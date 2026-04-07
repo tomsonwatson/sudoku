@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#16213e">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="数独ヒント">
@@ -83,7 +84,13 @@
 
   <!-- OpenCV.js（CDN） onRuntimeInitialized で準備完了を通知 -->
   <script>
-    var Module = { onRuntimeInitialized: function() { onOpenCvReady(); } };
+    var _cvReady = false;
+    var Module = {
+      onRuntimeInitialized: function() {
+        _cvReady = true;
+        console.log('OpenCV.js 準備完了');
+      }
+    };
   </script>
   <script async src="https://docs.opencv.org/4.8.0/opencv.js"></script>
   <!-- Tesseract.js（CDN） -->
