@@ -27,6 +27,7 @@ const clearBtn     = $('clear-board-btn');
 const statusBar    = $('status-bar');
 const loadingOverlay = $('loading-overlay');
 const loadingMsg   = $('loading-msg');
+const fileInput    = $('file-input');
 
 // ============================================================
 // タブ切り替え
@@ -75,6 +76,30 @@ function showNoCameraMessage(err) {
   }));
 }
 
+// ファイルから読み込む
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const size = Math.min(img.width, img.height);
+      const ox = (img.width  - size) / 2;
+      const oy = (img.height - size) / 2;
+      previewCanvas.width  = size;
+      previewCanvas.height = size;
+      const ctx = previewCanvas.getContext('2d');
+      ctx.drawImage(img, ox, oy, size, size, 0, 0, size, size);
+      switchToScreen('preview');
+      stopCamera();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+});
+
 // 撮影
 captureBtn.addEventListener('click', () => {
   const canvas = previewCanvas;
@@ -121,7 +146,7 @@ analyzeBtn.addEventListener('click', async () => {
 // ============================================================
 async function analyzeImage(canvas) {
   // Phase1: OpenCV.js でグリッド検出
-  showLoading('グリッドを検出中...');
+  showLoading('OpenCV 読み込み中... (初回は少し時間がかかります)');
   let gridCanvas;
   try {
     gridCanvas = await detectAndWarpGrid(canvas);
@@ -514,6 +539,22 @@ function updateStatus() {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// デバッグログを画面に表示
+const _debugEl = $('debug-log');
+const _origLog = console.log.bind(console);
+const _origWarn = console.warn.bind(console);
+function _appendLog(prefix, args) {
+  _origLog(prefix, ...args);
+  if (!_debugEl) return;
+  const line = prefix + ' ' + args.map(a =>
+    typeof a === 'object' ? JSON.stringify(a) : String(a)
+  ).join(' ');
+  _debugEl.textContent += '\n' + line;
+  _debugEl.scrollTop = _debugEl.scrollHeight;
+}
+console.log  = (...a) => _appendLog('[LOG]',  a);
+console.warn = (...a) => _appendLog('[WARN]', a);
 
 // ============================================================
 // Service Worker 登録

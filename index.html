@@ -44,6 +44,11 @@
           </button>
         </div>
       </div>
+      <!-- ファイル選択ボタン（カメラ非対応時・デバッグ用） -->
+      <div class="file-input-wrap">
+        <label for="file-input" class="btn btn-secondary">📁 画像から読み込む</label>
+        <input type="file" id="file-input" accept="image/*" capture="environment">
+      </div>
     </div>
 
     <!-- プレビュー画面 -->
@@ -67,13 +72,19 @@
           <button id="clear-board-btn" class="btn btn-secondary">リセット</button>
         </div>
       </div>
+
+      <!-- デバッグログ（開発中のみ表示） -->
+      <div id="debug-log">ログ待機中...</div>
     </div>
 
   </main>
 
   <div id="status-bar" class="status-bar">0 / 81 マス確定</div>
 
-  <!-- OpenCV.js（CDN） -->
+  <!-- OpenCV.js（CDN） onRuntimeInitialized で準備完了を通知 -->
+  <script>
+    var Module = { onRuntimeInitialized: function() { onOpenCvReady(); } };
+  </script>
   <script async src="https://docs.opencv.org/4.8.0/opencv.js"></script>
   <!-- Tesseract.js（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
