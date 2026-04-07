@@ -24,6 +24,9 @@ body {
   flex-direction: column;
   overflow-x: hidden;
   width: 100%;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ヘッダー */

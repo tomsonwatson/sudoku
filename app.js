@@ -182,16 +182,23 @@ function applyManualBoard() {
 // ============================================================
 async function startCamera() {
   if (state.stream) return;
-  try {
-    state.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
-      audio: false
-    });
-    video.srcObject = state.stream;
-    await video.play();
-  } catch (err) {
-    showNoCameraMessage(err);
+  // 制約を段階的に緩めて試みる（PWA環境でも動作するよう）
+  const constraints = [
+    { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } } },
+    { video: { facingMode: 'environment' } },
+    { video: true },
+  ];
+  for (const c of constraints) {
+    try {
+      state.stream = await navigator.mediaDevices.getUserMedia({ ...c, audio: false });
+      video.srcObject = state.stream;
+      await video.play();
+      return;
+    } catch (err) {
+      console.warn('カメラ制約失敗、次の制約を試行:', err.message);
+    }
   }
+  showNoCameraMessage(new Error('カメラへのアクセスが許可されていないか、利用できません'));
 }
 
 function stopCamera() {
