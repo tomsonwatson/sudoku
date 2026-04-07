@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#16213e"/>
+  <!-- 数独グリッド（3x3） -->
+  <g stroke="#e94560" stroke-width="3" fill="none">
+    <!-- 外枠 -->
+    <rect x="24" y="24" width="144" height="144" rx="4"/>
+    <!-- 内線 -->
+    <line x1="72" y1="24" x2="72" y2="168"/>
+    <line x1="120" y1="24" x2="120" y2="168"/>
+    <line x1="24" y1="72" x2="168" y2="72"/>
+    <line x1="24" y1="120" x2="168" y2="120"/>
+  </g>
+  <!-- 数字 -->
+  <text x="48" y="60" text-anchor="middle" font-size="28" font-family="Helvetica" font-weight="bold" fill="#eaeaea">5</text>
+  <text x="96" y="108" text-anchor="middle" font-size="28" font-family="Helvetica" font-weight="bold" fill="#e94560">3</text>
+  <text x="144" y="156" text-anchor="middle" font-size="28" font-family="Helvetica" font-weight="bold" fill="#eaeaea">7</text>
+</svg>

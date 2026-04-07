@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="数独ヒント">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+  <title>数独ヒントツール</title>
+</head>
+<body>
+
+  <header>
+    <h1>数独ヒントツール</h1>
+  </header>
+
+  <!-- タブ -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="camera">📷 撮影</button>
+    <button class="tab-btn" data-tab="board">🧩 盤面</button>
+  </nav>
+
+  <main>
+
+    <!-- ローディング -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <p id="loading-msg">処理中...</p>
+    </div>
+
+    <!-- 撮影画面 -->
+    <div id="camera-screen" class="screen active">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="camera-overlay">
+        <p class="camera-hint">数独の盤面を枠内に収めて撮影してください</p>
+        <div class="viewfinder"></div>
+        <div class="capture-btn-wrap">
+          <button id="capture-btn" aria-label="撮影">
+            <div class="inner"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- プレビュー画面 -->
+    <div id="preview-screen" class="screen">
+      <canvas id="preview-canvas"></canvas>
+      <div class="preview-actions">
+        <button id="retake-btn" class="btn btn-secondary">撮り直す</button>
+        <button id="analyze-btn" class="btn btn-primary">解析する</button>
+      </div>
+    </div>
+
+    <!-- 盤面・ヒント画面 -->
+    <div id="board-screen" class="screen">
+      <div id="sudoku-grid" class="sudoku-grid"></div>
+
+      <div class="hint-panel">
+        <h2>ヒント</h2>
+        <p id="hint-text" class="hint-text">盤面を撮影して解析すると、ここにヒントが表示されます。</p>
+        <div class="hint-actions">
+          <button id="next-hint-btn" class="btn btn-primary">次のヒントを適用</button>
+          <button id="clear-board-btn" class="btn btn-secondary">リセット</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="status-bar" class="status-bar">0 / 81 マス確定</div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

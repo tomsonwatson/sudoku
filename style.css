@@ -1,0 +1,375 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --accent: #0f3460;
+  --highlight: #e94560;
+  --text: #eaeaea;
+  --text-dim: #888;
+  --cell-confirmed: #0f3460;
+  --cell-hint: #e9456033;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ヘッダー */
+header {
+  padding: 12px 16px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--accent);
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* タブ */
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--accent);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn.active {
+  color: var(--highlight);
+  border-bottom-color: var(--highlight);
+}
+
+/* メインコンテンツ */
+main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.screen {
+  display: none;
+  height: 100%;
+  flex-direction: column;
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* カメラ画面 */
+#camera-screen {
+  position: relative;
+}
+
+#video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 16px;
+  pointer-events: none;
+}
+
+.viewfinder {
+  width: min(80vw, 80vh);
+  height: min(80vw, 80vh);
+  border: 2px solid var(--highlight);
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+  position: relative;
+}
+
+.viewfinder::before,
+.viewfinder::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--highlight);
+  border-style: solid;
+}
+
+.viewfinder::before {
+  top: -2px; left: -2px;
+  border-width: 3px 0 0 3px;
+  border-radius: 4px 0 0 0;
+}
+
+.viewfinder::after {
+  bottom: -2px; right: -2px;
+  border-width: 0 3px 3px 0;
+  border-radius: 0 0 4px 0;
+}
+
+.camera-hint {
+  color: white;
+  font-size: 13px;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.capture-btn-wrap {
+  pointer-events: all;
+}
+
+#capture-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: white;
+  border: 4px solid var(--highlight);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+
+#capture-btn:active {
+  transform: scale(0.93);
+}
+
+#capture-btn .inner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--highlight);
+}
+
+/* プレビュー画面 */
+#preview-screen {
+  padding: 16px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+#preview-canvas {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:active { opacity: 0.8; }
+
+.btn-secondary {
+  background: var(--accent);
+  color: var(--text);
+}
+
+.btn-primary {
+  background: var(--highlight);
+  color: white;
+}
+
+/* 盤面画面 */
+#board-screen {
+  padding: 16px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* 数独グリッド */
+.sudoku-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border: 2px solid var(--text);
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.sudoku-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--accent);
+  font-size: clamp(14px, 4vw, 22px);
+  font-weight: 700;
+  position: relative;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+/* ボックス境界線 */
+.sudoku-cell:nth-child(3n) { border-right: 1.5px solid var(--text-dim); }
+.sudoku-cell:nth-child(9n) { border-right: none; }
+
+.sudoku-grid .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+.sudoku-grid .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+  border-bottom: 1.5px solid var(--text-dim);
+}
+
+.sudoku-cell.given {
+  color: var(--text);
+}
+
+.sudoku-cell.hint {
+  background: var(--cell-hint);
+  color: var(--highlight);
+}
+
+.sudoku-cell.selected {
+  background: rgba(233, 69, 96, 0.2);
+  outline: 2px solid var(--highlight);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/* メモ表示（3×3） */
+.cell-notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 1px;
+}
+
+.cell-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(6px, 1.8vw, 10px);
+  font-weight: 400;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+/* ヒントパネル */
+.hint-panel {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hint-panel h2 {
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+.hint-text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  min-height: 44px;
+}
+
+.hint-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ステータスバー */
+.status-bar {
+  padding: 6px 16px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  border-top: 1px solid var(--accent);
+}
+
+/* カメラ未対応メッセージ */
+.no-camera {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.no-camera p {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ローディング */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26,26,46,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--accent);
+  border-top-color: var(--highlight);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.hidden { display: none !important; }
