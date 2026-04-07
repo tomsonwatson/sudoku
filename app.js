@@ -312,13 +312,12 @@ async function analyzeImage(canvas) {
   showLoading('数字を認識中...');
   const rawCells = splitGridIntoCells(gridCanvas);
 
-  // 空セル判定はRAWセルの中央部分で行う（グリッド線ノイズを避ける）
+  // 空セル判定はRAWセルの中央部分で行う
   const boardData = Array(81).fill(0);
   const emptyFlags = rawCells.map(c => isCellEmpty(c));
   console.log('空セル数:', emptyFlags.filter(Boolean).length);
 
-  // コントラスト強調はOCR用のみに使用
-  const cells = rawCells.map(c => enhanceCellContrast(c));
+  const cells = rawCells;
 
   // TensorFlow.js + MNIST で数字認識
   try {

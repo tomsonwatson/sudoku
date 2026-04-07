@@ -2,139 +2,124 @@
 
 // ============================================================
 // Phase 2: 数字認識
-// TensorFlow.js + MNIST ベース CNN で手書き数字を認識
+// Tesseract.js + 印刷数字向け前処理
 // ============================================================
 
-let _model = null;
+let _worker = null;
 
-/**
- * モデルをロード（初回のみ）
- * MNISTで学習済みの軽量CNNをTensorFlow.js形式で使用
- */
-async function loadDigitModel() {
-  if (_model) return _model;
-  // TensorFlow.js の公式 MNIST サンプルモデルを使用
-  _model = await tf.loadLayersModel(
-    'https://storage.googleapis.com/tfjs-models/tfjs/mnist_transfer_cnn_v1/model.json'
-  );
-  console.log('MNISTモデル読み込み完了');
-  return _model;
+async function initTesseract() {
+  if (_worker) return _worker;
+  _worker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
+  await _worker.setParameters({
+    tessedit_char_whitelist: '123456789',
+    tessedit_pageseg_mode: '10',   // PSM_SINGLE_CHAR
+    tessedit_ocr_engine_mode: '1', // LSTM only
+  });
+  console.log('Tesseract 準備完了');
+  return _worker;
 }
 
 /**
- * セル画像の配列から数字を認識して boardData に書き込む
- * @param {HTMLCanvasElement[]} cells 81個のセル画像
- * @param {boolean[]} emptyFlags 空セルフラグ
- * @param {number[]} boardData 結果書き込み先（0〜9）
+ * セル画像配列から数字を認識して boardData に書き込む
  */
 async function recognizeDigits(cells, emptyFlags, boardData) {
-  const model = await loadDigitModel();
-
-  // モデル出力形状をデバッグ
-  let debugCount = 0;
+  const worker = await initTesseract();
 
   for (let i = 0; i < 81; i++) {
-    if (emptyFlags[i]) {
-      boardData[i] = 0;
-      continue;
-    }
+    if (emptyFlags[i]) { boardData[i] = 0; continue; }
 
-    const { digit, probs } = await predictDigitWithProbs(model, cells[i]);
-    boardData[i] = digit;
-
-    // 最初の3つの非空セルの生の確率値をログ
-    if (debugCount < 3) {
-      const top3 = probs
-        .map((p, c) => ({ c, p }))
-        .sort((a, b) => b.p - a.p)
-        .slice(0, 3)
-        .map(x => `${x.c}:${(x.p*100).toFixed(0)}%`)
-        .join(' ');
-      console.log(`セル${i}(行${Math.floor(i/9)+1}列${i%9+1}) → ${digit} [${top3}]`);
-      debugCount++;
-    }
+    const processed = preprocessForOCR(cells[i]);
+    const { data: { text, confidence } } = await worker.recognize(processed);
+    const digit = parseInt(text.trim(), 10);
+    const valid = digit >= 1 && digit <= 9;
+    boardData[i] = (valid && confidence > 30) ? digit : 0;
   }
 
-  // 全行結果をまとめてログ
   for (let r = 0; r < 9; r++) {
     console.log(`行${r+1}: ${boardData.slice(r*9, r*9+9).join(' ')}`);
   }
 }
 
 /**
- * 単一セル画像から数字を予測する
- * @param {tf.LayersModel} model
- * @param {HTMLCanvasElement} cellCanvas
- * @returns {number} 1〜9、判定不能なら 0
+ * Tesseract 向け前処理
+ * 印刷数字に最適化：大津二値化 → 反転 → 膨張 → 余白追加
  */
-async function predictDigitWithProbs(model, cellCanvas) {
-  const result = tf.tidy(() => {
-    // 1. 28x28 グレースケールに変換
-    const tensor = tf.browser.fromPixels(cellCanvas, 1)
-      .resizeBilinear([28, 28])
-      .toFloat();
+function preprocessForOCR(cellCanvas) {
+  const SIZE = 64;
+  const PAD  = 12;
 
-    // 2. 反転（数字=白, 背景=黒 のMNIST形式に）
-    const normalized = tf.scalar(255).sub(tensor).div(tf.scalar(255));
+  // 1. リサイズ
+  const c1 = document.createElement('canvas');
+  c1.width = c1.height = SIZE;
+  c1.getContext('2d').drawImage(cellCanvas, 0, 0, SIZE, SIZE);
 
-    // 3. バッチ次元追加 [1, 28, 28, 1]
-    const batched = normalized.expandDims(0);
-
-    // 4. 推論 → softmaxで確率化
-    const logits = model.predict(batched);
-    const probs = tf.softmax(logits);
-    return Array.from(probs.dataSync());
-  });
-
-  // 1〜9で最高確率を探す
-  let maxProb = 0, maxClass = 0;
-  for (let c = 1; c <= 9; c++) {
-    if (result[c] > maxProb) {
-      maxProb = result[c];
-      maxClass = c;
-    }
+  // 2. グレースケール化
+  const ctx1 = c1.getContext('2d');
+  const img = ctx1.getImageData(0, 0, SIZE, SIZE);
+  const d = img.data;
+  const gray = new Uint8Array(SIZE * SIZE);
+  for (let i = 0; i < d.length; i += 4) {
+    gray[i/4] = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
   }
 
-  return {
-    digit: maxProb < 0.25 ? 0 : maxClass,
-    probs: result,
-  };
-}
+  // 3. 大津の二値化
+  const threshold = otsuThreshold(gray);
 
-// 後方互換用
-async function predictDigit(model, cellCanvas) {
-  const { digit } = await predictDigitWithProbs(model, cellCanvas);
-  return digit;
+  // 4. 二値化 + 反転（Tesseractは黒背景・白文字を期待）
+  const c2 = document.createElement('canvas');
+  c2.width = c2.height = SIZE;
+  const ctx2 = c2.getContext('2d');
+  const img2 = ctx2.createImageData(SIZE, SIZE);
+  for (let i = 0; i < gray.length; i++) {
+    // 印刷数字: 背景=白(高輝度)、文字=黒(低輝度) → 反転して文字=白
+    const val = gray[i] < threshold ? 255 : 0;
+    img2.data[i*4]   = val;
+    img2.data[i*4+1] = val;
+    img2.data[i*4+2] = val;
+    img2.data[i*4+3] = 255;
+  }
+  ctx2.putImageData(img2, 0, 0);
+
+  // 5. 余白追加（Tesseractの精度向上に効果的）
+  const c3 = document.createElement('canvas');
+  c3.width = c3.height = SIZE + PAD * 2;
+  const ctx3 = c3.getContext('2d');
+  ctx3.fillStyle = 'black';
+  ctx3.fillRect(0, 0, c3.width, c3.height);
+  ctx3.drawImage(c2, PAD, PAD);
+
+  return c3;
 }
 
 /**
- * セル画像を前処理してコントラストを強調する
- * （splitGridIntoCells の後に呼ぶ任意の前処理）
+ * 大津の二値化しきい値を計算
+ */
+function otsuThreshold(gray) {
+  const hist = new Array(256).fill(0);
+  for (const v of gray) hist[v]++;
+  const total = gray.length;
+
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+
+  let sumB = 0, wB = 0, max = 0, thresh = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > max) { max = between; thresh = t; }
+  }
+  return thresh;
+}
+
+/**
+ * コントラスト強調（手動修正画面用、enhanceCellContrastとして公開）
  */
 function enhanceCellContrast(cellCanvas) {
-  const out = document.createElement('canvas');
-  out.width  = cellCanvas.width;
-  out.height = cellCanvas.height;
-  const ctx = out.getContext('2d');
-  ctx.drawImage(cellCanvas, 0, 0);
-
-  const imgData = ctx.getImageData(0, 0, out.width, out.height);
-  const d = imgData.data;
-
-  // グレースケール化 + 大津の二値化的処理
-  let sum = 0;
-  const grays = new Uint8Array(d.length / 4);
-  for (let i = 0; i < d.length; i += 4) {
-    const g = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
-    grays[i/4] = g;
-    sum += g;
-  }
-  const mean = sum / grays.length;
-
-  for (let i = 0; i < d.length; i += 4) {
-    const val = grays[i/4] > mean ? 255 : 0;
-    d[i] = d[i+1] = d[i+2] = val;
-  }
-  ctx.putImageData(imgData, 0, 0);
-  return out;
+  return cellCanvas; // Tesseract版ではpreprocessForOCR内で処理するためスルー
 }
